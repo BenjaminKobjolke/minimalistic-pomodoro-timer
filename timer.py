@@ -3,6 +3,7 @@ from tkinter import ttk
 import configparser
 from typing import Optional
 import os
+import time
 from PIL import Image, ImageFont, ImageDraw, ImageTk
 from logger import Logger
 
@@ -43,7 +44,8 @@ class PomodoroTimer:
             ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style)
         
         # Timer state
-        self.time_left = 25 * 60  # 25 minutes in seconds
+        self.duration = 25 * 60  # 25 minutes in seconds
+        self.target_end_time = None
         self.running = False
         self.move_speed = 10  # Normal move speed
         self.font_size = 96  # Default font size
@@ -139,13 +141,22 @@ class PomodoroTimer:
         self.window.bind('<Shift-Down>', lambda e: self.move_window('down', slow=True))
         self.window.bind('<Destroy>', lambda e: self.save_settings())
     
+    def get_time_left(self) -> int:
+        """Calculate the time left based on the system clock."""
+        if not self.running or self.target_end_time is None:
+            return self.duration
+        
+        remaining = self.target_end_time - time.time()
+        return max(0, int(remaining))
+    
     def create_time_image(self) -> ImageTk.PhotoImage:
         """Create the timer display image."""
         img = Image.new('RGBA', (self.width, self.height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         
-        minutes = self.time_left // 60
-        seconds = self.time_left % 60
+        time_left = self.get_time_left()
+        minutes = time_left // 60
+        seconds = time_left % 60
         time_str = f"{minutes:02d}:{seconds:02d}"
         
         # Draw text in green
@@ -171,18 +182,28 @@ class PomodoroTimer:
         self.canvas._time_image = time_image  # Prevent garbage collection
         
         if self.running:
-            self.time_left = max(0, self.time_left - 1)
-            self.window.after(1000, self.update_display)
+            if self.get_time_left() == 0:
+                self.running = False
+                self.target_end_time = None
+            else:
+                self.window.after(100, self.update_display)  # Update more frequently for smoother display
     
     def toggle_timer(self, event: Optional[tk.Event] = None) -> None:
         """Toggle timer between running and paused states."""
         self.running = not self.running
         if self.running:
+            # Set target end time based on current time plus remaining duration
+            self.target_end_time = time.time() + self.get_time_left()
             self.update_display()
+        else:
+            # Store remaining time when paused
+            self.duration = self.get_time_left()
+            self.target_end_time = None
     
     def reset_timer(self, event: Optional[tk.Event] = None) -> None:
         """Reset timer to initial state."""
-        self.time_left = 25 * 60
+        self.duration = 25 * 60
+        self.target_end_time = None
         self.running = False
         self.update_display()
     
