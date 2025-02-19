@@ -1,6 +1,8 @@
 import logging
 from typing import Optional
 
+ENABLE_LOGGING = False  # Set to True to enable logging to file
+
 
 class Logger:
     """Custom logging class for the application."""
@@ -22,11 +24,14 @@ class Logger:
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         
-        # Log to file instead of console
-        file_handler = logging.FileHandler('pomodoro.log')
-        file_handler.setFormatter(formatter)
-        
-        self.logger.addHandler(file_handler)
+        if ENABLE_LOGGING:
+            # Log to file
+            file_handler = logging.FileHandler('pomodoro.log')
+            file_handler.setFormatter(formatter)
+            self.logger.addHandler(file_handler)
+        else:
+            # Use NullHandler when logging is disabled
+            self.logger.addHandler(logging.NullHandler())
     
     def info(self, message: str) -> None:
         """Log an info message."""
