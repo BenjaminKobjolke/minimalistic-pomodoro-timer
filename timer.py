@@ -22,10 +22,9 @@ class PomodoroTimer:
         self.window.overrideredirect(True)
         self.window.attributes('-alpha', 0.9, '-topmost', True)
         
-        # Make window transparent using a specific color
-        self.transparent_color = '#010101'  # Very specific dark color
-        if os.name == 'nt':  # Windows
-            self.window.wm_attributes('-transparentcolor', self.transparent_color)
+        # We're using alpha transparency instead of transparentcolor
+        # This makes the entire window clickable while still appearing transparent
+        self.window.attributes('-alpha', 0.95)  # Slightly higher alpha for better visibility
         
         # Keep in taskbar
         self.window.wm_attributes('-toolwindow', False)
@@ -114,11 +113,13 @@ class PomodoroTimer:
         self.width = bbox[2] - bbox[0] + 40  # Add padding
         self.height = bbox[3] - bbox[1] + 20  # Add padding
         
+        # Create a canvas with a very dark background that will be nearly invisible
+        # but still allow clicks anywhere in the window
         self.canvas = tk.Canvas(
             self.window,
             width=self.width,
             height=self.height,
-            bg=self.transparent_color,  # This specific color will be made transparent
+            bg='#000000',  # Pure black background
             highlightthickness=0
         )
         self.canvas.pack()
@@ -151,6 +152,7 @@ class PomodoroTimer:
     
     def create_time_image(self) -> ImageTk.PhotoImage:
         """Create the timer display image."""
+        # Create a transparent image
         img = Image.new('RGBA', (self.width, self.height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         
@@ -159,8 +161,18 @@ class PomodoroTimer:
         seconds = time_left % 60
         time_str = f"{minutes:02d}:{seconds:02d}"
         
+        # Calculate text dimensions to center it vertically
+        bbox = draw.textbbox((0, 0), time_str, font=self.font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1] - 15
+        
+        # Calculate position to center text vertically
+        # Add a small offset to adjust for font rendering peculiarities
+        x_pos = 20  # Keep horizontal position the same
+        y_pos = (self.height - text_height) // 2 - 2  # Center vertically with slight adjustment
+        
         # Draw text in green
-        draw.text((20, 10), time_str, fill='#00ff00', font=self.font)
+        draw.text((x_pos, y_pos), time_str, fill='#00ff00', font=self.font)
         
         return ImageTk.PhotoImage(img)
     
@@ -170,8 +182,10 @@ class PomodoroTimer:
         
         # Draw white border when focused
         if self.window.focus_get() is not None:
+            # Use coordinates that ensure the border is visible on all sides
+            # Subtract 1 from width and height to ensure the border is fully within the canvas
             self.canvas.create_rectangle(
-                0, 0, self.width, self.height,
+                1, 1, self.width - 1, self.height - 1,
                 outline='white',
                 width=1
             )
