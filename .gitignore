@@ -3,3 +3,6 @@ venv
 __pycache__
 settings.ini
 pomodoro.log
+build
+dist
+/MinimalisticPomodoroTimer.spec
