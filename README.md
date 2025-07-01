@@ -40,7 +40,8 @@ This will start the timer without showing any console window.
 ### Controls
 
 - `s` - Start/Pause timer
-- `r` - Reset timer to 25:00
+- `r` - Reset timer
+- `e` - Set a custom time in minutes
 - Arrow keys - Move window
 - Shift + Arrow keys - Fine movement control
 
