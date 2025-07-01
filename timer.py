@@ -132,6 +132,7 @@ class PomodoroTimer:
         """Setup keyboard bindings."""
         self.window.bind('s', self.toggle_timer)
         self.window.bind('r', self.reset_timer)
+        self.window.bind('e', self.prompt_duration)  # Bind 'e' to prompt_duration
         self.window.bind('<Left>', lambda e: self.move_window('left'))
         self.window.bind('<Right>', lambda e: self.move_window('right'))
         self.window.bind('<Up>', lambda e: self.move_window('up'))
@@ -141,7 +142,26 @@ class PomodoroTimer:
         self.window.bind('<Shift-Up>', lambda e: self.move_window('up', slow=True))
         self.window.bind('<Shift-Down>', lambda e: self.move_window('down', slow=True))
         self.window.bind('<Destroy>', lambda e: self.save_settings())
-    
+
+    def prompt_duration(self, event: Optional[tk.Event] = None) -> None:
+        """Prompt user for a new timer duration."""
+        # Ensure simpledialog is imported
+        from tkinter import simpledialog
+
+        new_duration_minutes = simpledialog.askinteger(
+            "Set Timer Duration",
+            "Enter duration in minutes:",
+            parent=self.window,
+            minvalue=1  # Ensure positive duration
+        )
+
+        if new_duration_minutes is not None:
+            self.duration = new_duration_minutes * 60  # Convert to seconds
+            self.reset_timer(use_default_duration=False) # Reset to apply new duration
+            self.logger.info(f"Timer duration set to {new_duration_minutes} minutes.")
+        else:
+            self.logger.info("User cancelled duration input or entered invalid input.")
+
     def get_time_left(self) -> int:
         """Calculate the time left based on the system clock."""
         if not self.running or self.target_end_time is None:
@@ -214,9 +234,15 @@ class PomodoroTimer:
             self.duration = self.get_time_left()
             self.target_end_time = None
     
-    def reset_timer(self, event: Optional[tk.Event] = None) -> None:
-        """Reset timer to initial state."""
-        self.duration = 25 * 60
+    def reset_timer(self, event: Optional[tk.Event] = None, use_default_duration: bool = True) -> None:
+        """Reset timer to initial state or custom duration."""
+        if use_default_duration:
+            self.duration = 25 * 60  # Default duration
+            self.logger.info("Timer reset to default 25 minutes.")
+        else:
+            # Duration is already set by prompt_duration, just log
+            self.logger.info(f"Timer reset to custom duration: {self.duration // 60} minutes.")
+
         self.target_end_time = None
         self.running = False
         self.update_display()
