@@ -48,10 +48,13 @@ class PomodoroTimer:
         self.running = False
         self.move_speed = 10  # Normal move speed
         self.font_size = 96  # Default font size
+        self.default_duration_seconds = 25 * 60 # Default timer duration
         
         # Load settings
         self.config = configparser.ConfigParser()
-        self.load_settings()
+        self.load_settings() # This will potentially update self.default_duration_seconds
+
+        self.duration = self.default_duration_seconds # Initialize timer duration
         
         # Load font
         self.font = None
@@ -89,18 +92,37 @@ class PomodoroTimer:
             
             if self.config.has_section('Display'):
                 self.font_size = self.config.getint('Display', 'font_size')
+
+            if self.config.has_section('Timer') and self.config.has_option('Timer', 'custom_duration_minutes'):
+                custom_duration_minutes = self.config.getint('Timer', 'custom_duration_minutes')
+                if custom_duration_minutes > 0:
+                    self.default_duration_seconds = custom_duration_minutes * 60
+                    self.logger.info(f"Loaded custom duration: {custom_duration_minutes} minutes.")
+                else:
+                    self.logger.warning("Invalid custom_duration_minutes in settings.ini, using default.")
+            else:
+                self.logger.info("No custom duration found in settings.ini, using default.")
+                # self.default_duration_seconds is already 25*60 by default from __init__
+
         except Exception as e:
             self.logger.error(f"Error loading settings: {e}")
             self.window.geometry('+100+100')
+            # self.default_duration_seconds remains the default 25*60 if settings load fails or section/option is missing
     
     def save_settings(self) -> None:
-        """Save current window position to settings file."""
+        """Save current window position and custom duration to settings file."""
         try:
             x = self.window.winfo_x()
             y = self.window.winfo_y()
             self.config['Window'] = {'x': str(x), 'y': str(y)}
+
+            if not self.config.has_section('Timer'):
+                self.config.add_section('Timer')
+            self.config.set('Timer', 'custom_duration_minutes', str(self.default_duration_seconds // 60))
+
             with open('settings.ini', 'w') as f:
                 self.config.write(f)
+            self.logger.info(f"Settings saved, custom duration: {self.default_duration_seconds // 60} minutes.")
         except Exception as e:
             self.logger.error(f"Error saving settings: {e}")
     
@@ -132,6 +154,7 @@ class PomodoroTimer:
         """Setup keyboard bindings."""
         self.window.bind('s', self.toggle_timer)
         self.window.bind('r', self.reset_timer)
+        self.window.bind('e', self.prompt_duration)  # Bind 'e' to prompt_duration
         self.window.bind('<Left>', lambda e: self.move_window('left'))
         self.window.bind('<Right>', lambda e: self.move_window('right'))
         self.window.bind('<Up>', lambda e: self.move_window('up'))
@@ -141,7 +164,28 @@ class PomodoroTimer:
         self.window.bind('<Shift-Up>', lambda e: self.move_window('up', slow=True))
         self.window.bind('<Shift-Down>', lambda e: self.move_window('down', slow=True))
         self.window.bind('<Destroy>', lambda e: self.save_settings())
-    
+
+    def prompt_duration(self, event: Optional[tk.Event] = None) -> None:
+        """Prompt user for a new timer duration."""
+        # Ensure simpledialog is imported
+        from tkinter import simpledialog
+
+        new_duration_minutes = simpledialog.askinteger(
+            "Set Timer Duration",
+            "Enter duration in minutes:",
+            parent=self.window,
+            minvalue=1  # Ensure positive duration
+        )
+
+        if new_duration_minutes is not None:
+            self.duration = new_duration_minutes * 60  # Convert to seconds
+            self.default_duration_seconds = self.duration # Update the default duration
+            self.save_settings() # Save the new default duration immediately
+            self.reset_timer() # Reset to apply new duration (will use default_duration_seconds)
+            self.logger.info(f"Timer duration set to {new_duration_minutes} minutes and saved as default.")
+        else:
+            self.logger.info("User cancelled duration input or entered invalid input.")
+
     def get_time_left(self) -> int:
         """Calculate the time left based on the system clock."""
         if not self.running or self.target_end_time is None:
@@ -215,10 +259,11 @@ class PomodoroTimer:
             self.target_end_time = None
     
     def reset_timer(self, event: Optional[tk.Event] = None) -> None:
-        """Reset timer to initial state."""
-        self.duration = 25 * 60
+        """Reset timer to the stored default duration."""
+        self.duration = self.default_duration_seconds
         self.target_end_time = None
         self.running = False
+        self.logger.info(f"Timer reset to stored duration: {self.duration // 60} minutes.")
         self.update_display()
     
     def move_window(self, direction: str, slow: bool = False) -> None:
