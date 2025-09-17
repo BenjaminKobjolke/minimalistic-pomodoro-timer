@@ -46,7 +46,7 @@ class PomodoroTimer:
         self.duration = 25 * 60  # 25 minutes in seconds
         self.target_end_time = None
         self.running = False
-        self.move_speed = 10  # Normal move speed
+        self.move_speed = 50  # Fast move speed
         self.font_size = 96  # Default font size
         self.default_duration_seconds = 25 * 60 # Default timer duration
         
@@ -268,7 +268,7 @@ class PomodoroTimer:
     
     def move_window(self, direction: str, slow: bool = False) -> None:
         """Move window in specified direction."""
-        speed = 1 if slow else self.move_speed
+        speed = 5 if slow else self.move_speed
         x = self.window.winfo_x()
         y = self.window.winfo_y()
         
