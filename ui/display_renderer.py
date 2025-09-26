@@ -5,9 +5,11 @@ from typing import Optional
 from PIL import Image, ImageFont, ImageDraw, ImageTk
 from core.constants import (
     COLOR_TIMER_TEXT, COLOR_BACKGROUND, COLOR_BORDER_FOCUSED,
+    COLOR_WORK_TIMER_DEFAULT, COLOR_PAUSE_TIMER_DEFAULT,
     WINDOW_PADDING_X, WINDOW_PADDING_Y,
     TEXT_OFFSET_X, TEXT_OFFSET_Y, TEXT_HEIGHT_ADJUSTMENT,
-    DEFAULT_FONT_FILE, DEFAULT_FONT_SIZE
+    DEFAULT_FONT_FILE, DEFAULT_FONT_SIZE,
+    TIMER_PHASE_WORK, TIMER_PHASE_PAUSE
 )
 from logger import Logger
 
@@ -24,6 +26,10 @@ class DisplayRenderer:
         self.width = 0
         self.height = 0
         self._time_image: Optional[ImageTk.PhotoImage] = None
+
+        # Color settings for different timer phases
+        self.work_timer_color = COLOR_WORK_TIMER_DEFAULT
+        self.pause_timer_color = COLOR_PAUSE_TIMER_DEFAULT
 
     def load_font(self, font_path: Optional[str], font_size: int) -> None:
         """Load the font for display rendering."""
@@ -61,7 +67,7 @@ class DisplayRenderer:
 
         return self.width, self.height
 
-    def render(self, time_str: str, has_focus: bool) -> None:
+    def render(self, time_str: str, has_focus: bool, timer_phase: str = TIMER_PHASE_WORK) -> None:
         """Render the timer display."""
         # Clear canvas
         self.canvas.delete('all')
@@ -71,13 +77,13 @@ class DisplayRenderer:
             self._draw_border()
 
         # Create and display time image
-        time_image = self._create_time_image(time_str)
+        time_image = self._create_time_image(time_str, timer_phase)
         self.canvas.create_image(0, 0, anchor='nw', image=time_image)
 
         # Prevent garbage collection
         self._time_image = time_image
 
-    def _create_time_image(self, time_str: str) -> ImageTk.PhotoImage:
+    def _create_time_image(self, time_str: str, timer_phase: str = TIMER_PHASE_WORK) -> ImageTk.PhotoImage:
         """Create the timer display image."""
         if not self.font:
             raise ValueError("Font must be loaded before creating image")
@@ -95,10 +101,36 @@ class DisplayRenderer:
         x_pos = TEXT_OFFSET_X
         y_pos = (self.height - text_height) // 2 + TEXT_OFFSET_Y
 
-        # Draw text in green
-        draw.text((x_pos, y_pos), time_str, fill=COLOR_TIMER_TEXT, font=self.font)
+        # Choose color based on timer phase
+        text_color = self._get_phase_color(timer_phase)
+
+        # Draw text with phase-appropriate color
+        draw.text((x_pos, y_pos), time_str, fill=text_color, font=self.font)
 
         return ImageTk.PhotoImage(img)
+
+    def _get_phase_color(self, timer_phase: str) -> str:
+        """Get the appropriate color for the given timer phase."""
+        if timer_phase == TIMER_PHASE_PAUSE:
+            return self.pause_timer_color
+        else:  # TIMER_PHASE_WORK or default
+            return self.work_timer_color
+
+    def set_work_timer_color(self, color: str) -> None:
+        """Set the work timer color."""
+        self.work_timer_color = color
+        self.logger.info(f"Work timer color updated to: {color}")
+
+    def set_pause_timer_color(self, color: str) -> None:
+        """Set the pause timer color."""
+        self.pause_timer_color = color
+        self.logger.info(f"Pause timer color updated to: {color}")
+
+    def update_colors(self, work_color: str, pause_color: str) -> None:
+        """Update both timer colors at once."""
+        self.work_timer_color = work_color
+        self.pause_timer_color = pause_color
+        self.logger.info(f"Timer colors updated - Work: {work_color}, Pause: {pause_color}")
 
     def _draw_border(self) -> None:
         """Draw a border around the display when focused."""

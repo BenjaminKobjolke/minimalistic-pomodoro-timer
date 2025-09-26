@@ -21,6 +21,7 @@ class InputHandler:
         self.window.bind('r', self._handle_timer_reset)
         self.window.bind('e', self._handle_duration_prompt)
         self.window.bind('a', self._handle_always_on_top)
+        self.window.bind('c', self._handle_config_window)
 
         # Movement controls
         self.window.bind('<Left>', lambda e: self._handle_move('left'))
@@ -63,6 +64,10 @@ class InputHandler:
         """Set callback for window destroy event."""
         self.callbacks['destroy'] = callback
 
+    def set_config_window_callback(self, callback: Callable) -> None:
+        """Set callback for config window action."""
+        self.callbacks['config_window'] = callback
+
     def prompt_for_duration(self) -> Optional[int]:
         """Show a dialog to prompt for timer duration in minutes."""
         return simpledialog.askinteger(
@@ -101,3 +106,8 @@ class InputHandler:
         """Handle window destroy event."""
         if 'destroy' in self.callbacks:
             self.callbacks['destroy']()
+
+    def _handle_config_window(self, event: Optional[tk.Event] = None) -> None:
+        """Handle config window event."""
+        if 'config_window' in self.callbacks:
+            self.callbacks['config_window']()

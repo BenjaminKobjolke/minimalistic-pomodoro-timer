@@ -18,6 +18,13 @@ class WindowManager:
         self.always_on_top = True
         self.on_focus_callback: Optional[Callable] = None
 
+        # Track last known valid position to avoid 0,0 on window destroy
+        self.last_valid_x = 0
+        self.last_valid_y = 0
+
+        # Track focus state for reliable focus detection with overrideredirect windows
+        self._has_focus = False
+
         self._setup_window()
 
     def _setup_window(self) -> None:
@@ -37,9 +44,10 @@ class WindowManager:
         if os.name == 'nt':
             self._setup_windows_taskbar()
 
-        # Bind focus events
+        # Bind focus events and position tracking
         self.window.bind('<FocusIn>', self._on_focus_in)
         self.window.bind('<FocusOut>', self._on_focus_out)
+        self.window.bind('<Configure>', self._on_configure)
 
         self.logger.info("Window setup completed")
 
@@ -64,10 +72,31 @@ class WindowManager:
     def set_position(self, x: int, y: int) -> None:
         """Set the window position."""
         self.window.geometry(f'+{x}+{y}')
+        # Update our tracking variables
+        self.last_valid_x = x
+        self.last_valid_y = y
 
     def get_position(self) -> tuple[int, int]:
         """Get the current window position."""
-        return self.window.winfo_x(), self.window.winfo_y()
+        try:
+            current_x = self.window.winfo_x()
+            current_y = self.window.winfo_y()
+
+            # If we get 0,0 (likely during window destruction), return last valid position
+            if current_x == 0 and current_y == 0 and (self.last_valid_x != 0 or self.last_valid_y != 0):
+                self.logger.warning("Window position returned 0,0, using last valid position")
+                return self.last_valid_x, self.last_valid_y
+
+            # Update tracking if we got valid coordinates
+            if current_x != 0 or current_y != 0:
+                self.last_valid_x = current_x
+                self.last_valid_y = current_y
+
+            return current_x, current_y
+        except tk.TclError:
+            # Window might be destroyed, return last known position
+            self.logger.warning("Could not get window position (window destroyed?), using last valid position")
+            return self.last_valid_x, self.last_valid_y
 
     def move_window(self, direction: str, slow: bool = False) -> None:
         """Move window in specified direction."""
@@ -85,6 +114,19 @@ class WindowManager:
 
         self.set_position(x, y)
 
+    def _on_configure(self, event: Optional[tk.Event] = None) -> None:
+        """Handle window configuration changes (including position)."""
+        if event and event.widget == self.window:
+            # Update our position tracking when window moves
+            try:
+                x = self.window.winfo_x()
+                y = self.window.winfo_y()
+                if x != 0 or y != 0:  # Only update if not 0,0
+                    self.last_valid_x = x
+                    self.last_valid_y = y
+            except tk.TclError:
+                pass  # Ignore if window is being destroyed
+
     def toggle_always_on_top(self) -> bool:
         """Toggle the always-on-top state of the window."""
         self.always_on_top = not self.always_on_top
@@ -98,14 +140,17 @@ class WindowManager:
 
     def _on_focus_in(self, event: Optional[tk.Event] = None) -> None:
         """Handle window focus in event."""
+        self._has_focus = True
         if self.on_focus_callback:
             self.on_focus_callback()
 
     def _on_focus_out(self, event: Optional[tk.Event] = None) -> None:
         """Handle window focus out event."""
+        self._has_focus = False
         if self.on_focus_callback:
             self.on_focus_callback()
 
     def has_focus(self) -> bool:
         """Check if the window currently has focus."""
-        return self.window.focus_get() is not None
+        # Use the tracked focus state which is more reliable for borderless windows
+        return self._has_focus
