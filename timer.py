@@ -49,6 +49,7 @@ class PomodoroTimer:
         self.move_speed = 50  # Fast move speed
         self.font_size = 96  # Default font size
         self.default_duration_seconds = 25 * 60 # Default timer duration
+        self.always_on_top = True  # Track always-on-top state
         
         # Load settings
         self.config = configparser.ConfigParser()
@@ -155,6 +156,7 @@ class PomodoroTimer:
         self.window.bind('s', self.toggle_timer)
         self.window.bind('r', self.reset_timer)
         self.window.bind('e', self.prompt_duration)  # Bind 'e' to prompt_duration
+        self.window.bind('a', self.toggle_always_on_top)  # Toggle always-on-top
         self.window.bind('<Left>', lambda e: self.move_window('left'))
         self.window.bind('<Right>', lambda e: self.move_window('right'))
         self.window.bind('<Up>', lambda e: self.move_window('up'))
@@ -290,7 +292,58 @@ class PomodoroTimer:
     def on_focus_out(self, event: Optional[tk.Event] = None) -> None:
         """Handle window focus out event."""
         self.update_display()
-    
+
+    def show_tooltip(self, message: str) -> None:
+        """Display a tooltip with the given message."""
+        tooltip = tk.Toplevel(self.window)
+        tooltip.overrideredirect(True)
+        tooltip.attributes('-topmost', True)
+
+        # Create label with message
+        label = tk.Label(
+            tooltip,
+            text=message,
+            bg='#333333',
+            fg='white',
+            font=('Arial', 12),
+            padx=10,
+            pady=5
+        )
+        label.pack()
+
+        # Position tooltip centered below the main window
+        tooltip.update_idletasks()  # Ensure tooltip dimensions are calculated
+        tooltip_width = tooltip.winfo_reqwidth()
+        x = self.window.winfo_x() + (self.window.winfo_width() // 2) - (tooltip_width // 2)
+        y = self.window.winfo_y() + self.window.winfo_height() + 10
+
+        # Ensure tooltip stays on screen
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight()
+
+        # Adjust position if tooltip would go off screen
+        if y + 40 > screen_height:  # If tooltip would go below screen
+            y = self.window.winfo_y() - 40  # Show above the timer
+        if x + 150 > screen_width:  # If tooltip would go off right edge
+            x = screen_width - 150
+        if x < 0:  # If tooltip would go off left edge
+            x = 0
+
+        tooltip.geometry(f'+{x}+{y}')
+
+        # Auto-dismiss after 1500ms
+        tooltip.after(1500, tooltip.destroy)
+
+    def toggle_always_on_top(self, event: Optional[tk.Event] = None) -> None:
+        """Toggle the always-on-top state of the window."""
+        self.always_on_top = not self.always_on_top
+        self.window.attributes('-topmost', self.always_on_top)
+
+        # Show tooltip with current state
+        status = "ON" if self.always_on_top else "OFF"
+        self.show_tooltip(f"Always on top: {status}")
+        self.logger.info(f"Always on top toggled to: {status}")
+
     def run(self) -> None:
         """Start the timer application."""
         self.window.mainloop()

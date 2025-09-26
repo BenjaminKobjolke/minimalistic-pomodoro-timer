@@ -6,6 +6,8 @@ A simple, transparent Pomodoro timer with keyboard controls.
 Controls:
 - 's' to start/pause timer
 - 'r' to reset timer
+- 'e' to set custom duration
+- 'a' to toggle always-on-top mode
 - Arrow keys to move window
 - Shift + Arrow keys for fine movement
 """

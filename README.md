@@ -42,6 +42,7 @@ This will start the timer without showing any console window.
 - `s` - Start/Pause timer
 - `r` - Reset timer
 - `e` - Set a custom time in minutes
+- `a` - Toggle always-on-top mode
 - Arrow keys - Move window
 - Shift + Arrow keys - Fine movement control
 
