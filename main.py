@@ -12,17 +12,17 @@ Controls:
 - Shift + Arrow keys for fine movement
 """
 
-from timer import PomodoroTimer
+from app import PomodoroApp
 from logger import Logger
 
 def main() -> None:
     """Main entry point for the Pomodoro Timer application."""
     logger = Logger()
     logger.info("Starting Pomodoro Timer application")
-    
+
     try:
-        timer = PomodoroTimer()
-        timer.run()
+        app = PomodoroApp()
+        app.run()
     except Exception as e:
         logger.error(f"Application error: {e}")
         raise

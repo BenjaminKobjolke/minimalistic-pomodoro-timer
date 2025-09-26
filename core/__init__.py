@@ -1,0 +1,1 @@
+"""Core module containing timer logic and constants."""

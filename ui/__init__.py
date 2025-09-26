@@ -1,0 +1,1 @@
+"""User interface module for the Pomodoro Timer application."""
